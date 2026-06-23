@@ -2,6 +2,8 @@
 
 Default visual style for 复习资料/考试备考/知识整理/技术文档 HTML output. Skip the "choose aesthetic direction" step for these types — use this layout directly.
 
+> **设计原则：** 复习资料类文档保持明亮、温暖、纸质感。header 用白色/米白卡片底 + 细边，代码块用暖灰底（非纯黑），整体融入页面底色，不抢眼。
+
 ## Core Design Tokens
 
 ```css
@@ -26,12 +28,8 @@ Typography: `'Noto Serif SC'` (Chinese) + `'Inter'` (code/meta). Serif for body 
 
 ```css
 .header {
-    background: linear-gradient(135deg, #1a1a2e, #3a2a4e, #5c3a6a);
-    color: white; padding: 44px 0 32px; text-align: center;
-}
-.header::after {
-    content: ''; position: absolute; bottom: 0; left: 0; right: 0;
-    height: 3px; background: linear-gradient(90deg, #c9a27b, var(--accent), #c9a27b);
+    background: var(--card-bg); color: var(--text); padding: 44px 0 32px;
+    text-align: center; border-bottom: 2px solid var(--border);
 }
 ```
 
@@ -151,6 +149,27 @@ Red-tinted, for common mistakes:
 .err-box .ok { color: #27ae60; font-weight: 700; }
 .err-box .bad { color: #c0392b; font-weight: 700; }
 ```
+
+## Code Blocks (代码块)
+
+Use light/warm background that matches the page, not dark backgrounds:
+
+```css
+pre {
+    background: #f6f5f1; border: 1px solid #e8e4dc; border-radius: 8px;
+    padding: 14px 18px; overflow-x: auto; font-size: 13px; line-height: 1.55;
+    font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+    color: #2d2d3a;
+}
+```
+
+Syntax highlighting colors for light background:
+- `.code-cmt` → `#888` (comments, gray)
+- `.code-kw` → `#d63384` (keywords, rose)
+- `.code-fn` → `#1a73e8` (functions, blue)
+- `.code-str` → `#0d9488` (strings, teal)
+- `.code-num` → `#b8860b` (numbers, gold)
+- `.code-macro` → `#7c3aed` (macros, purple)
 
 ### Mnemonic (记忆口诀)
 Yellow pill badge for memory aids:

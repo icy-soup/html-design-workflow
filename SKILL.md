@@ -1,15 +1,18 @@
 ---
 name: html-design-workflow
 description: >-
-  CRITICAL: You MUST use this skill ANY time the user mentions HTML files,
-  especially when they involve KaTeX math formulas, review materials, or
-  formula display issues. Trigger on: 做HTML, 做网页, 做页面, 修改html, html坏了,
-  公式不显示, 公式乱码, 公式渲染, KaTeX, 复习资料HTML, 数学公式, 显示不全,
-  数学分析, 期末复习, 课件HTML, review-ch, "$$"显示问题, 数学符号乱码.
-  Also triggers on: 前端设计, UI设计, 做组件, 做仪表盘, 做幻灯片, 做PPT, 做演示.
-  Also use when user says 学习这个风格, 参考这个页面, 提取风格, or shows an HTML
-  file to emulate. When triggered, ALWAYS follow the backup rule and math
-  formula checks in this skill.
+  CRITICAL: You MUST use this skill ANY time the user mentions anything related
+  to HTML files or web pages. Trigger on: 做HTML, 做网页, 做页面, 写HTML,
+  写网页, 修改html, html坏了, 做个页面, 做个HTML, 帮我写个HTML, 前端设计, 做组件,
+  做仪表盘, 做幻灯片, 做PPT, 做演示. ALSO trigger on: 公式不显示, 公式乱码,
+  公式渲染, KaTeX, 复习资料HTML, 数学公式, 显示不全, 数学分析, 期末复习, 课件HTML,
+  review-ch, "$$"显示问题, 数学符号乱码. ALSO trigger on user showing an existing
+  HTML file to emulate 学习这个风格, 参考这个页面, 提取风格. ANY request involving
+  HTML output MUST trigger this skill without exception.
+  When triggered, ALWAYS invoke this Skill tool BEFORE writing any code or
+  responding to the user. Read the full SKILL.md and all references before
+  starting. DO NOT skip this step — failing to invoke the skill before work
+  has caused severe issues in the past.
 ---
 
 # HTML Design Workflow
@@ -104,26 +107,102 @@ If the user says the exam is open-book (开卷考), skip click-to-reveal entirel
 ### Step 7: Deliver
 See the delivery checklist below. **Check before claiming done.**
 
-## KaTeX Math Rendering (数学公式)
+## Core Principles Behind This Skill
 
-When HTML files contain KaTeX-rendered math, follow these rules:
+This skill exists because past HTML work repeatedly had the same failures:
+formulas not rendering, user frustration, wasted time. Understanding *why*
+each rule exists helps you apply them correctly instead of robotically.
+
+### Why you must invoke this skill before writing any HTML
+
+Every time this skill was skipped, the output had problems: wrong KaTeX
+approach, broken script loading, missing sidebar/layout. The skill bakes in
+solutions to problems you won't see until the user opens the file. Invoking
+it first is not overhead — it's what prevents the need for rewrites.
+
+### Why KaTeX needs `renderToString()` not `renderMathInElement()`
+
+The `renderToString()` approach (documented below) targets only elements
+containing `$...$` and uses `throwOnError: false`. This means: one bad formula
+can't crash the entire page, HTML entities inside formulas are handled
+correctly, and there's no script-load-order dependency beyond loading
+`katex.min.js`. The `auto-render.min.js` approach failed repeatedly because
+it introduces an extra script dependency, has no error isolation, and breaks
+when scripts load out of order.
+
+### Why you should never question the user's environment
+
+When a user says "it doesn't work" or formulas don't render, the root cause
+has always been code error — script order, wrong KaTeX approach, missing
+elements. Blaming CDN availability or the user's network is not only wrong
+(working reference files prove CDN works fine), it wastes time on wild goose
+chases. Debug your code first, always.
+
+## KaTeX Math Rendering (数学公式)
 
 ### Backup First
 Before modifying ANY HTML file, create a backup:
 ```bash
-mkdir -p backup/$(date +%Y-%m-%d) && cp file.html backup/$(date +%Y-%m-d)/
+mkdir -p backup/$(date +%Y-%m-%d) && cp file.html backup/$(date +%Y-%m-%d)/
 ```
-Store backups in a separate `backup/` folder, NOT alongside working files.
+
+### CORRECT APPROACH: `katex.renderToString()` (proven working)
+
+**DO NOT use `auto-render.min.js` or `renderMathInElement()`.** These have caused:
+- Script loading order bugs (ReferenceError on all formulas)
+- CDN loading failures (auto-render.js is a separate file that may not load)
+- No error handling (formulas fail silently)
+
+Use the proven approach from `F:\In-class Learning Materials\Aai大二\下\最优化\最优化期末复习参考.html`:
+
+```html
+<!-- CSS in <head> -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css">
+
+<!-- At end of <body>, load katex.min.js THEN run render -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"></script>
+<script>
+document.querySelectorAll('.fc, .tb, .tip, .content p, .content li, .tbl td, .tbl th, .di p').forEach(function(el) {
+  var html = el.innerHTML;
+  if (html.indexOf('$') !== -1) {
+    try {
+      html = html.replace(/\$\$(.*?)\$\$/g, function(_, code) {
+        return katex.renderToString(code.replace(/&lt;/g,'<').replace(/&gt;/g,'>').trim(), { displayMode: true, throwOnError: false });
+      });
+      html = html.replace(/\$(.*?)\$/g, function(_, code) {
+        return katex.renderToString(code.replace(/&lt;/g,'<').replace(/&gt;/g,'>').trim(), { displayMode: false, throwOnError: false });
+      });
+      el.innerHTML = html;
+    } catch(e) {}
+  }
+});
+</script>
+```
+
+Key details:
+- **`throwOnError: false`** — CRITICAL. Without this, a single bad formula crashes everything
+- **`&lt;`/`&gt;` replacement** — HTML entities inside `$...$` must be decoded before KaTeX processes them
+- **Selector-based** — target specific elements (`.fc`, `.tbl td`, etc.), NOT `document.body`
+- **`.innerHTML` approach** — replaces `$...$` patterns in existing HTML rather than scanning DOM text nodes
+- **Only `katex.min.js` needed** — no auto-render, no extra script dependencies
 
 ### `<` in Inline Math (`$...$`)
 In HTML, `<` is always parsed as a tag start by the browser **before** KaTeX runs.
 So `$b<a<c$` → browser sees `<a` as an HTML tag → DOM corruption.
 **Fix:** Always use `&lt;` when `<` is followed by a letter inside `$...$`:
 - `$b<a<c$` → `$b&lt;a&lt;c$`
-- `$0<a<1$` → `$0&lt;a&lt;1$`
 - `$a_n<a_{n+1}$` → `$a_n&lt;a_{n+1}$`
-- `$b<a_n<c$` → `$b&lt;a_n&lt;c$`
 Numbers after `<` (like `$x<0$`) are safe — they don't form HTML tags.
+
+### Chinese Characters Inside `$...$` (中文在公式内)
+Chinese characters MUST NOT appear inside `$...$` delimiters.
+KaTeX cannot render CJK characters as-is. Move them outside the math
+delimiters or wrap in `\text{}`:
+
+**Wrong:** `$A - B = A + (-B)_补$`
+**Right:** `$A - B = A + (-B)_\text{补}$`
+
+**Check:** grep for `\$[^$]*[一-鿿][^$]*\$` — if found, fix immediately.
 
 ### `$$` Display Math Pairing
 Each `$$` must open AND close, and content between must be PURE LaTeX:
@@ -132,19 +211,24 @@ $$                    ← opening
 f(x) = x^2           ← only LaTeX here, NO Chinese text, NO HTML
 $$                    ← closing
 ```
-If Chinese text follows the math, close `$$` first, then use `$...$` for inline:
-```
-$$                    ← correct
-f(x) = x^2
-$$
-所以 $f(x) \ge 0$   ← Chinese outside display math
-```
 
 ### CDN for Chinese Users
 `cdn.jsdelivr.net` is often slow/blocked in China. Use `cdnjs.cloudflare.com` instead:
 ```
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"></script>
 ```
+
+### KaTeX Anti-Patterns (NEVER do these)
+
+| Anti-pattern | Why it's wrong | Correct way |
+|-------------|----------------|-------------|
+| Using `auto-render.min.js` | Extra dependency, script order bugs, no error control | `katex.renderToString()` directly |
+| `renderMathInElement(document.body, ...)` | Scans ALL text nodes, can pick up HTML tags, no throwOnError | Target specific elements with selectors |
+| Script loading `renderMathInElement()` before katex.min.js | ReferenceError → all formulas fail | Load katex.min.js first, THEN run inline script |
+| `throwOnError: true` (default) | One bad formula crashes all rendering | Always set `throwOnError: false` |
+| Expecting CDN to work without verification | User's network may not reach CDN | Test locally or use proven CDN (cloudflare) |
+| Questioning the user's environment | Your code is wrong, not the user's | Debug your own code first |
 
 ## Common Mistakes
 
@@ -162,17 +246,19 @@ $$
 - [ ] **Zero ASCII art**: grep for `┌┐└┘├┤─│╲╱═║` — replace all
 - [ ] **No `diagram-line` divs** in body (only in CSS definitions)
 - [ ] **No frame-drawing chars** in code blocks — use `-` `*` instead
-- [ ] **Sidebar works**: nav links jump correctly, hierarchy correct
-- [ ] **Code blocks**: dark background + syntax highlighting
+- [ ] **Sidebar TOC**: auto-generated from headings, mobile hamburger works (for docs with 3+ sections)
 - [ ] **Mobile**: hamburger menu + responsive
 - [ ] **Color consistency**: CSS variables, chapter colors unified
 - [ ] **Readability**: line-height ≥ 1.65, sufficient contrast
 - [ ] **Motion**: respect `prefers-reduced-motion`
 - [ ] **No empty code blocks**
-- [ ] **KaTeX $$ even**: count `$$` occurrences — must be even (all paired)
+- [ ] **KaTeX uses renderToString**: confirm NO `auto-render.min.js` or `renderMathInElement()`. Must use `katex.renderToString()` with `throwOnError: false`
+- [ ] **KaTeX script order**: confirm `<script src="katex.min.js">` loads BEFORE the inline script that calls `katex.renderToString()`
+- [ ] **KaTeX Chinese check**: grep for `\$[^$]*[一-鿿][^$]*\$` — move Chinese outside `$...$` or wrap in `\text{}`
 - [ ] **KaTeX < check**: grep for `\$[^$]*<[a-z]` in `$...$` — replace `<` with `&lt;` if found
-- [ ] **KaTeX CDN**: use `cdnjs.cloudflare.com/ajax/libs/KaTeX/` for Chinese users
+- [ ] **KaTeX CDN**: use `cdnjs.cloudflare.com/ajax/libs/KaTeX/` not `cdn.jsdelivr.net`
 - [ ] **Backup**: verify backup exists in `backup/YYYY-MM-DD/` before modifying
-- [ ] **Sidebar TOC**: auto-generated from headings, mobile hamburger works (for docs with 3+ sections)
-- [ ] **Analysis layout**: card-based chapters, color-coded sections, formula cards (for 复习资料 type)
+- [ ] **Analysis layout**: card-based chapters, color-coded sections, formula cards, chip SVG diagrams, truth tables (for 复习资料 type)
 - [ ] **Click-to-reveal**: present only if NOT open-book exam
+- [ ] **Chip diagrams + truth tables**: include SVG chip pin diagrams AND truth tables for all covered chips (for 复习资料 type)
+- [ ] **Before claiming done**: open the file in browser and visually verify formulas render, layout is correct, no errors in console
