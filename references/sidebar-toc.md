@@ -90,40 +90,64 @@ body {
 }
 ```
 
-## JavaScript (auto-generate TOC from headings)
+## JavaScript (chapter-based TOC — ONLY approach for multi-chapter docs)
+
+For multi-chapter documents with `.chapter` cards, the TOC MUST iterate by chapter
+rather than collecting all headings flat. A flat list mixes all sections together
+with no chapter grouping, making the sidebar useless for navigation.
 
 ```javascript
 document.addEventListener('DOMContentLoaded', function() {
-    // Generate TOC
     var toc = document.getElementById('toc');
-    var headings = document.querySelectorAll('.content-wrapper h2, .content-wrapper h3');
-    var activeLinks = [];
+    var chapters = document.querySelectorAll('.chapter[id]');
+    var items = []; // {el: a, target: element}
 
-    headings.forEach(function(h, i) {
-        if (!h.id) h.id = 'heading-' + i;
+    function cleanText(t) {
+        return t.textContent.replace(/[◆◇▶→⭐💡]/g,'').replace(/\s+/g,' ').trim();
+    }
+
+    chapters.forEach(function(ch) {
+        var title = ch.querySelector('.chapter-title');
+        if (!title) return;
+        var txt = cleanText(title);
+        if (txt.length < 2) return;
+
+        // Chapter title as top-level TOC entry
         var a = document.createElement('a');
-        a.href = '#' + h.id;
-        a.textContent = h.textContent.replace(/^[一二三四五六七八九十]+[\.\s、]*/, '').trim();
-        if (h.tagName === 'H3') a.className = 'toc-h3';
-        else a.className = 'toc-h2';
+        a.href = '#' + ch.id;
+        a.textContent = txt;
+        a.className = 'toc-h2';
         toc.appendChild(a);
-        activeLinks.push(a);
+        items.push({el: a, target: ch});
+
+        // Sub-sections within this chapter
+        var subs = ch.querySelectorAll('.sn, h2, h3, h4');
+        var si = 0;
+        subs.forEach(function(h) {
+            if (h === title || h.closest('.chapter-title')) return;
+            if (h.closest('.ans-wrap')) return; // skip hidden answer content
+            var stxt = cleanText(h);
+            if (stxt.length < 2) return;
+            if (!h.id) h.id = ch.id + '-s' + (si++);
+            var a2 = document.createElement('a');
+            a2.href = '#' + h.id;
+            a2.textContent = stxt;
+            a2.className = 'toc-h3';
+            toc.appendChild(a2);
+            items.push({el: a2, target: h});
+        });
     });
 
     // Active section highlight
     function onScroll() {
-        var scrollY = window.scrollY + 100;
+        var y = window.scrollY + 100;
         var active = null;
-        headings.forEach(function(h, i) {
-            if (h.offsetTop <= scrollY) active = i;
-        });
-        activeLinks.forEach(function(a, i) {
-            a.classList.toggle('active', i === active);
-        });
+        items.forEach(function(item, i) { if (item.target.offsetTop <= y) active = i; });
+        items.forEach(function(item, i) { item.el.classList.toggle('active', i === active); });
     }
     window.addEventListener('scroll', onScroll);
 
-    // Mobile hamburger
+    // Mobile hamburger (same as before)
     document.getElementById('hamburger').addEventListener('click', function() {
         document.getElementById('sidebar').classList.add('open');
         document.getElementById('sidebarOverlay').classList.add('open');
