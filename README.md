@@ -25,7 +25,9 @@
 │   ├── mock-exam-layout.md           # 模考布局样式指南
 │   ├── printable-index-layout.md     # 打印索引布局样式指南
 │   ├── sidebar-toc.md                # 侧边栏目录实现（基于章节）
-│   └── click-to-reveal.md            # 点击显示交互实现
+│   ├── click-to-reveal.md            # 点击显示交互实现
+│   ├── incidents.md                  # 历史踩坑记录
+│   └── python-latex-escape.md        # Python LaTeX 转义陷阱指南
 └── styleref/                         # 已学习的风格记录
 ```
 
@@ -45,6 +47,6 @@
 
 | 日期 | 版本 | 变更 |
 |------|------|------|
-| 2026-06-26 | v2.2 | 新增模考布局（mock-exam-layout）和打印索引布局（printable-index-layout），侧边栏TOC改为基于章节迭代（适配多章文档），SKILL.md 全面重写 — 新增核心原则解释、KaTeX 反模式表、div平衡校验、contenteditable JS DOM 方案、文件编辑规范 |
+| 2026-06-28 | v2.3 | 新增 `incidents.md`（历史踩坑记录）和 `python-latex-escape.md`（Python LaTeX 三层转义指南），SKILL.md 重写工作流结构 — 新增 Step 0 Python 转义检查、布局选择前置、更详细的 KaTeX 和 div 校验流程 |
 | 2026-06-18 | v2.0 | 新增默认分析布局（卡片式章节、公式卡片、定理框等）、侧边栏目录（自动TOC+滚动高亮+移动端适配）、点击显示交互（答案/证明/记忆内容）、KaTeX 中文 CDN 优化与 `<` 转义规则、开卷考场景检测 |
 | 2026-05-21 | v1.0 | 初始版本：分类路由、风格学习、零ASCII图、交付清单 |
